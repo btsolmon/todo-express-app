@@ -1,12 +1,13 @@
 import express from "express";
 import fs from "fs";
+import cors from "cors";
 
 import todoRouter from "./routers/todo-router.js";
 import authRouter from "./routers/auth-router.js";
 
 const app = express();
 app.use(express.json());
-
+app.use(cors());
 app.use("/api/todos", todoRouter);
 app.use("/api/auth", authRouter);
 
@@ -18,6 +19,6 @@ app.get("/api/users", (req, res) => {
   return res.send(users);
 });
 
-app.listen(3000, () => {
-  console.log("Server is running on http://localhost:3000");
+app.listen(5400, () => {
+  console.log("Server is running on http://localhost:5400");
 });
