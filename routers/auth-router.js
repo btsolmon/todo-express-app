@@ -1,20 +1,13 @@
 import express from "express";
-import fs from "fs";
-import { nanoid } from "nanoid";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { auth } from "../auth-middleware.js";
-
-const userData = fs.readFileSync("./users.json", "utf-8");
-let users = JSON.parse(userData);
-
-const updateUserFile = () => {
-  fs.writeFileSync("./users.json", JSON.stringify(users), "utf-8");
-};
+import { UserModel } from "../models/user-model.js";
+import { nanoid } from "nanoid";
 
 const router = express.Router();
 
-router.post("/signup", (req, res) => {
+router.post("/signup", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res
@@ -22,7 +15,7 @@ router.post("/signup", (req, res) => {
       .send({ message: "Body must have username and password" });
   }
 
-  const existingUser = users.find((user) => user.username === username);
+  const existingUser = await UserModel.findOne({ username: username });
 
   if (existingUser) {
     return res.status(400).send({ message: "Username already exists" });
@@ -45,46 +38,42 @@ Password must contain:
 
   const hashedPassword = bcrypt.hashSync(password, 10);
 
-  const newUser = {
-    id: nanoid(),
+  const newUser = await UserModel.create({
+    _id: nanoid(),
     username,
     password: hashedPassword,
-  };
-  users.push(newUser);
-  updateUserFile();
+  });
   return res.send(newUser);
 });
 
-router.post("/signin", (req, res) => {
+router.post("/signin", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    return res
-      .status(400)
-      .send({ message: "Body must have username and password" });
+    return res.status(400).send({ message: "Body must have username and password" });
   }
 
-  const existingUser = users.find((user) => user.username === username);
+  const existingUser = await UserModel.findOne({ username: username });
 
   if (!existingUser) {
     return res.status(401).send({ message: "Wrong credentials" });
   }
 
   const isMatching = bcrypt.compareSync(password, existingUser.password);
-
   if (!isMatching) {
     return res.status(401).send({ message: "Wrong credentials" });
   }
-  const { password: hashedPassword, ...userWithoutPassword } = existingUser;
 
-  const accessToken = jwt.sign(userWithoutPassword, "MySecret", {
-    expiresIn: "5m",
-  });
+  const userObj = existingUser.toObject();
+  
+  delete userObj.password;
+
+  const accessToken = jwt.sign(
+    { _id: userObj._id, username: userObj.username }, 
+    "MySecret", 
+    { expiresIn: "5m" }
+  );
 
   return res.send({ message: "Successfully signedin", accessToken });
-});
-
-router.get("/me", auth, (req, res) => {
-  return res.send(req.user);
 });
 
 export default router;
