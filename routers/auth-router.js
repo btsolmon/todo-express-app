@@ -49,7 +49,9 @@ Password must contain:
 router.post("/signin", async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    return res.status(400).send({ message: "Body must have username and password" });
+    return res
+      .status(400)
+      .send({ message: "Body must have username and password" });
   }
 
   const existingUser = await UserModel.findOne({ username: username });
@@ -64,16 +66,20 @@ router.post("/signin", async (req, res) => {
   }
 
   const userObj = existingUser.toObject();
-  
+
   delete userObj.password;
 
   const accessToken = jwt.sign(
-    { _id: userObj._id, username: userObj.username }, 
-    "MySecret", 
-    { expiresIn: "5m" }
+    { _id: userObj._id, username: userObj.username },
+    process.env.AUTH_SECRET,
+    { expiresIn: "5m" },
   );
 
   return res.send({ message: "Successfully signedin", accessToken });
+});
+
+router.get("/me", auth, (req, res) => {
+  return res.send(req.user);
 });
 
 export default router;
